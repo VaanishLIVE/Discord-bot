@@ -1,0 +1,9 @@
+token = '12345'
+
+prefix = '!'
+recurring_guild_id = 1234
+
+admin_id_role = '938435735701311538'
+
+id_mute_role = '938437343751319613'
+id_user_role = '938437452920672327'

@@ -1,0 +1,157 @@
+import discord
+import time
+from discord.ext import commands
+import config
+
+
+class Moder(commands.Cog):
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print('moder is ready')
+
+    @commands.command()
+    @commands.has_any_role(config.admin_id_role)
+    async def mute(self, ctx, user: discord.Member, reason=None):
+
+        channel = self.bot.get_channel(config.log_mes_channel_id)
+        guild = self.bot.get_guild(config.recurring_guild_id)
+        role = guild.get_role(config.id_mute_role)
+
+        embed = discord.Embed(title=f"Пользователя {user} заглушили", color=0xfac400)
+        embed.set_author(name=f"{ctx.author}", icon_url=f"{ctx.author.avatar_url}")
+        embed.add_field(name="Причина:", value=f"{reason}", inline=True)
+        embed.set_footer(text=f"BOT • {time.asctime()}")
+
+        await user.add_roles(role)
+
+        await channel.send(embed=embed)
+        await ctx.channel.purge(limit=1)
+        await ctx.send(embed=embed, delete_after=30)
+
+
+    @commands.command()
+    @commands.has_any_role(config.admin_id_role)
+    async def unmute(self, ctx, user: discord.Member):
+
+        channel = self.bot.get_channel(config.log_mes_channel_id)
+        guild = self.bot.get_guild(config.recurring_guild_id)
+        role = guild.get_role(config.id_mute_role)
+
+        embed = discord.Embed(title=f"Пользователя {user} разглушили", color=0xfac400)
+        embed.set_author(name=f"{ctx.author}", icon_url=f"{ctx.author.avatar_url}")
+        embed.set_footer(text=f"BOT • {time.asctime()}")
+
+        await user.remove_roles(role)
+
+        await channel.send(embed=embed)
+        await ctx.channel.purge(limit=1)
+        await ctx.send(embed=embed, delete_after=30)
+
+
+    @commands.command()
+    @commands.has_any_role(config.admin_id_role)
+    async def ban(self, ctx, user: discord.Member, *, reason=None):
+
+        channel = self.bot.get_channel(config.log_mes_channel_id)
+
+        embed = discord.Embed(title=f"Пользователя {user} забанили", color=0xfac400)
+        embed.set_author(name=f"{ctx.author}", icon_url=f"{ctx.author.avatar_url}")
+        embed.add_field(name="Причина:", value=f"{reason}", inline=True)
+        embed.set_footer(text=f"BOT • {time.asctime()}")
+
+        await channel.send(embed=embed)
+        await user.ban(reason=reason)
+        await ctx.channel.purge(limit=1)
+        await ctx.send(embed=embed, delete_after=30)
+
+
+    @commands.command()
+    @commands.has_any_role(config.admin_id_role)
+    async def unban(self, ctx, *, member):
+
+        banned_users = await ctx.guild.bans()
+        channel = self.bot.get_channel(config.log_mes_channel_id)
+
+        member_name, member_discriminator = member.split("#")
+        for ban_entry in banned_users:
+            user = ban_entry.user
+
+            if (user.name, user.discriminator) == (member_name, member_discriminator):
+                await ctx.guild.unban(user)
+                embed = discord.Embed(title=f"Пользователя {user} разбанили", color=0xfac400)
+                embed.set_author(name=f"{ctx.author}", icon_url=f"{ctx.author.avatar_url}")
+                embed.set_footer(text=f"Silence. • {time.asctime()}")
+                await channel.send(embed=embed)
+                await ctx.channel.purge(limit=1)
+                await ctx.send(embed=embed, delete_after=30)
+                return
+
+
+    @commands.command()
+    @commands.has_any_role(config.admin_id_role)
+    async def kick(self, ctx, user: discord.Member, *, reason=""):
+
+        channel = self.bot.get_channel(config.log_mes_channel_id)
+
+        embed = discord.Embed(title=f"Пользователя {user} выгнали из сервера", color=0xfac400)
+        embed.set_author(name=f"{ctx.author}", icon_url=f"{ctx.author.avatar_url}")
+        embed.add_field(name="Причина:", value=f"{reason}", inline=True)
+        embed.set_footer(text=f"BOT • {time.asctime()}")
+
+        await channel.send(embed=embed)
+        await ctx.channel.purge(limit=1)
+        await ctx.send(embed=embed, delete_after=30)
+        await user.kick()
+
+
+
+    @commands.command()
+    @commands.has_any_role(config.admin_id_role)
+    async def clear(self, ctx, amount=20):
+
+        channel = self.bot.get_channel(config.log_mes_channel_id)
+        if amount < 200:
+
+            embed = discord.Embed(title=f"Очистил чат \"{ctx.channel}\" на {amount} сообщений(ия)", color=0xfac400)
+            embed.set_author(name=f"{ctx.author}", icon_url=f"{ctx.author.avatar_url}")
+            embed.set_footer(text=f"BOT • {time.asctime()}")
+
+            await ctx.channel.purge(limit=int(amount))
+            await channel.send(embed=embed)
+            await ctx.send(embed=discord.Embed(description=f":wheelchair: удалено {amount} сообщений(я)"), delete_after=30)
+        else:
+            await ctx.send(embed=discord.Embed(description=f":Вы не можете удалить больше 200 сообщений"), delete_after=30)
+
+
+async def setup(bot):
+    await bot.add_cog(Moder(bot))
+Пройдёмся по функциям сверху вниз.
+
+@commands.has_any_role(config.admin_id_role) - это новый декоратор, он проверяет есть ли у пользователя роль (нужен ID роли). Также можно указывать перечень ролей в массиве (для этого распаковывайте массив).
+
+Mute принимает в себя само сообщение, пользователя (пример @user), и причину. Первым делом мы заготавливаем объект чата, в который будем присылать действия администратора. Потом сам сервер (в документации discord.py сервер называется гильдия). И в конце получаем роль, которую будем давать пользователю. 
+
+Когда всё готово, собираем сообщение-уведомление (не забывайте пользоваться конструктором embed тут). Дальше к объекту пользователя добавляем роль. И отправляем сообщение в логи и в чат, откуда пришла команда. Не забываем удалять отправленную команду.
+
+Unmute зеркальна с функций mute, только для пользователя мы используем метод remove role.
+
+Ban - выгоняет пользователя с сервера и добавляет его в черный список (в дальнейшем его не смогут пригласить на сервер пока он в ЧС). 
+
+Для работы в переменных нам потребуется только канал для системы логов. Следом проходим процедуру сборки красивого сообщения и отправляем его как в mute.
+
+Unban - не просто зеркальная функция, потому что тут нам потребуется обращаться к списку ЧС. banned_users делает запрос к ЧС сервера. Дальше мы делаем полный перебор всех заблокированных и сравниваем с нашим пользователем. Как только находим его, убираем юзера из списка и выводим сообщение о разблокировке. 
+
+Kick - с этой функций дела обстоят намного проще, так как у пользователя есть метод для изгнания user.kick.
+
+Clear - последняя возможность для администрирования. В нее поступает не только сообщение, но и количество сообщений, которое нужно удалить. Дальше идет защита от опечатки. 
+
+ctx.channel.purge(limit=int(amount)) отвечает за удаление сообщений, в limit передаем полученное значение.
+
+Заключение
+Библиотека discord.py не проста в понимании и требует много времени на разбор. Но лучших аналогов для Python не найти из-за обширности API. 
+
+Если захотите разобраться глубже, самостоятельно изучайте новые методы и классы. Производите глубокий анализ, что откуда исходит (какой вы получаете объект в ответе и как его можно получить еще). 
